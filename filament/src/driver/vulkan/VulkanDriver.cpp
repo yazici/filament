@@ -275,13 +275,6 @@ void VulkanDriver::createIndexBufferR(Driver::IndexBufferHandle ibh, Driver::Ele
             indexCount);
 }
 
-void VulkanDriver::createTextureR(Driver::TextureHandle th, SamplerType target, uint8_t levels,
-        TextureFormat format, uint8_t samples, uint32_t w, uint32_t h, uint32_t depth,
-        TextureUsage usage) {
-    construct_handle<VulkanTexture>(mHandleMap, th, mContext, target, levels, format, samples,
-            w, h, depth, usage, mStagePool);
-}
-
 void VulkanDriver::createSamplerGroupR(Driver::SamplerGroupHandle sbh, size_t count) {
     construct_handle<VulkanSamplerGroup>(mHandleMap, sbh, mContext, count);
 }
@@ -293,6 +286,24 @@ void VulkanDriver::createUniformBufferR(Driver::UniformBufferHandle ubh, size_t 
 
 void VulkanDriver::createRenderPrimitiveR(Driver::RenderPrimitiveHandle rph, int) {
     construct_handle<VulkanRenderPrimitive>(mHandleMap, rph, mContext);
+}
+
+void VulkanDriver::createTextureR(Driver::TextureHandle th, SamplerType target, uint8_t levels,
+        TextureFormat format, uint8_t samples, uint32_t w, uint32_t h, uint32_t depth,
+        TextureUsage usage) {
+    auto vktexture = construct_handle<VulkanTexture>(mHandleMap, th, mContext, target, levels,
+            format, samples, w, h, depth, usage, mStagePool);
+    mDisposer.createDisposable(vktexture, [this, th] () {
+        destruct_handle<VulkanTexture>(mHandleMap, th);
+    });
+}
+
+void VulkanDriver::destroyTexture(Driver::TextureHandle th) {
+    if (th) {
+        auto* texture = handle_cast<VulkanTexture>(mHandleMap, th);
+        mBinder.unbindImageView(texture->imageView);
+        mDisposer.removeReference(texture);
+    }
 }
 
 void VulkanDriver::createProgramR(Driver::ProgramHandle ph, Program&& program) {
@@ -452,15 +463,6 @@ void VulkanDriver::destroyUniformBuffer(Driver::UniformBufferHandle ubh) {
         mBinder.unbindUniformBuffer(buffer->getGpuBuffer());
         waitForIdle(mContext);
         destruct_handle<VulkanUniformBuffer>(mHandleMap, ubh);
-    }
-}
-
-void VulkanDriver::destroyTexture(Driver::TextureHandle th) {
-    if (th) {
-        auto* tex = handle_cast<VulkanTexture>(mHandleMap, th);
-        mBinder.unbindImageView(tex->imageView);
-        waitForIdle(mContext);
-        destruct_handle<VulkanTexture>(mHandleMap, th);
     }
 }
 
@@ -1003,10 +1005,11 @@ void VulkanDriver::draw(Driver::PipelineState pipelineState, Driver::RenderPrimi
                 uint8_t binding = (uint8_t)program->samplerBindings[bufferIdx][samplerIndex].binding;
                 const SamplerParams& samplerParams = sampler->s;
                 VkSampler vksampler = mSamplerCache.getSampler(samplerParams);
-                const auto* tex = handle_const_cast<VulkanTexture>(mHandleMap, sampler->t);
+                const auto* texture = handle_const_cast<VulkanTexture>(mHandleMap, sampler->t);
+                mDisposer.acquire(texture, commands->resources);
                 mBinder.bindSampler(binding, {
                     .sampler = vksampler,
-                    .imageView = tex->imageView,
+                    .imageView = texture->imageView,
                     .imageLayout = samplerParams.depthStencil ?
                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL

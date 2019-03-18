@@ -455,7 +455,6 @@ VulkanTexture::VulkanTexture(VulkanContext& context, SamplerType target, uint8_t
 }
 
 VulkanTexture::~VulkanTexture() {
-    assert(!hasPendingWork(mContext) && "Texture destroyed while work is pending.");
     vkDestroyImage(mContext.device, textureImage, VKALLOC);
     vkDestroyImageView(mContext.device, imageView, VKALLOC);
     vkFreeMemory(mContext.device, textureImageMemory, VKALLOC);
