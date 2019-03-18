@@ -205,7 +205,7 @@ void VulkanRenderTarget::createColorImage(VkFormat format) {
         .subresourceRange.layerCount = 1,
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
     };
-    vkCmdPipelineBarrier(mContext.cmdbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    vkCmdPipelineBarrier(mContext.commands->cmdbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     // Create a VkImageView so that we can attach it to the framebuffer.
@@ -267,7 +267,7 @@ void VulkanRenderTarget::createDepthImage(VkFormat format) {
         .subresourceRange.layerCount = 1,
         .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
     };
-    vkCmdPipelineBarrier(mContext.cmdbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    vkCmdPipelineBarrier(mContext.commands->cmdbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1,
             &depthBarrier);
 
@@ -358,8 +358,8 @@ void VulkanUniformBuffer::loadFromCpu(const void* cpuData, uint32_t numBytes) {
     };
 
     // If possible, perform the upload immediately, otherwise queue up the work.
-    if (mContext.cmdbuffer) {
-        copyToDevice(mContext.cmdbuffer);
+    if (mContext.commands) {
+        copyToDevice(mContext.commands->cmdbuffer);
     } else {
         mContext.pendingWork.emplace_back(copyToDevice);
     }
@@ -504,8 +504,8 @@ void VulkanTexture::update2DImage(const PixelBufferDescriptor& data, uint32_t wi
     };
 
     // If possible, perform the upload immediately, otherwise queue up the work.
-    if (mContext.cmdbuffer) {
-        copyToDevice(mContext.cmdbuffer);
+    if (mContext.commands) {
+        copyToDevice(mContext.commands->cmdbuffer);
     } else {
         mContext.pendingWork.emplace_back(copyToDevice);
     }
@@ -546,8 +546,8 @@ void VulkanTexture::updateCubeImage(const PixelBufferDescriptor& data,
     };
 
     // If possible, perform the upload immediately, otherwise queue up the work.
-    if (mContext.cmdbuffer) {
-        copyToDevice(mContext.cmdbuffer);
+    if (mContext.commands) {
+        copyToDevice(mContext.commands->cmdbuffer);
     } else {
         mContext.pendingWork.emplace_back(copyToDevice);
     }

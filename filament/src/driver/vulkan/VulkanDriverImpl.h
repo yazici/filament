@@ -18,6 +18,7 @@
 #define TNT_FILAMENT_DRIVER_VULKANDRIVER_IMPL_H
 
 #include "VulkanBinder.h"
+#include "VulkanDisposer.h"
 
 #include <filament/driver/DriverEnums.h>
 
@@ -27,8 +28,9 @@
 
 #include "vk_mem_alloc.h"
 
-#include <vector>
 #include <functional>
+#include <memory>
+#include <vector>
 
 namespace filament {
 namespace driver {
@@ -42,11 +44,10 @@ using VulkanTaskQueue = std::vector<VulkanTask>;
 
 struct VulkanSurfaceContext;
 
-// The work context is used for activities unrelated to the swap chain or draw calls, such as
-// uploads, blits, and transitions.
-struct WorkContext {
+struct VulkanCommandBuffer {
     VkCommandBuffer cmdbuffer;
     VkFence fence;
+    VulkanDisposer::Set resources;
 };
 
 // For now we only support a single-device, single-instance scenario. Our concept of "context" is a
@@ -64,13 +65,16 @@ struct VulkanContext {
     bool debugMarkersSupported;
     VulkanTaskQueue pendingWork;
     VulkanBinder::RasterState rasterState;
-    VkCommandBuffer cmdbuffer;
+    VulkanCommandBuffer* commands;
     VulkanSurfaceContext* currentSurface;
     VkRenderPassBeginInfo currentRenderPass;
     VkViewport viewport;
     VkFormat depthFormat;
     VmaAllocator allocator;
-    WorkContext work;
+
+    // The work context is used for activities unrelated to the swap chain or draw calls, such as
+    // uploads, blits, and transitions.
+    VulkanCommandBuffer work;
 };
 
 struct VulkanAttachment {
@@ -84,8 +88,7 @@ struct VulkanAttachment {
 // Typically there are only 2 or 3 instances of the SwapContext per SwapChain.
 struct SwapContext {
     VulkanAttachment attachment;
-    VkCommandBuffer cmdbuffer;
-    VkFence fence;
+    VulkanCommandBuffer commands;
     VulkanTaskQueue pendingWork;
     bool submitted;
 };

@@ -71,8 +71,8 @@ void VulkanBuffer::loadFromCpu(const void* cpuData, uint32_t byteOffset, uint32_
     };
 
     // If possible, perform the upload immediately, otherwise queue up the work.
-    if (mContext.cmdbuffer) {
-        copyToDevice(mContext.cmdbuffer);
+    if (mContext.commands) {
+        copyToDevice(mContext.commands->cmdbuffer);
     } else {
         mContext.pendingWork.emplace_back(copyToDevice);
     }
