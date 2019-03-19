@@ -17,8 +17,6 @@
 #ifndef TNT_FILAMENT_DRIVER_VULKANDISPOSER_H
 #define TNT_FILAMENT_DRIVER_VULKANDISPOSER_H
 
-#include "../DriverBase.h"
-
 #include <tsl/robin_map.h>
 #include <tsl/robin_set.h>
 
@@ -29,60 +27,42 @@
 namespace filament {
 namespace driver {
 
-// Because vkDestroy* calls are synchronous, resources in currently-executing command buffers
-// must have their destruction deferred, so we provide a simple ref-counting mechanism for this.
+// Tracks resources that need deferred destruction due to use by active command buffers.
+class VulkanDisposer {
+public:
+    using Key = const void*;
+    using Set = tsl::robin_set<Key>;
 
-template<typename KEY>
-class Disposer {
+    // Adds the given resource to the disposer and sets its reference count to 1.
+    void createDisposable(Key resource, std::function<void()> destructor) noexcept;
+
+    // Increments the reference count.
+    void addReference(Key resource) noexcept;
+
+    // Decrements the reference count and moves it to the graveyard if it becomes 0.
+    void removeReference(Key resource) noexcept;
+
+    // If the given resource is not in the given set, then it gets added to the set and its
+    // reference count is incremented.
+    void acquire(Key resource, Set& resources) noexcept;
+
+    // Decrements the reference count for all resources in the set, then clears it.
+    void release(Set& resources);
+
+    // Invokes the destructor function for each disposable in the graveyard.
+    void gc() noexcept;
+
+    // Invokes the destructor function for all disposables, regardless of reference count.
+    void reset() noexcept;
+
+private:
     struct Disposable {
         size_t refcount;
         std::function<void()> destructor;
     };
-
-    tsl::robin_map<KEY, std::unique_ptr<Disposable>> mDisposables;
-    std::vector<std::unique_ptr<Disposable>> mGraveyard;
-
-public:
-    using Set = tsl::robin_set<KEY>;
-
-    void createDisposable(KEY resource, std::function<void()> destructor) noexcept {
-        mDisposables[resource].reset(new Disposable { 1, destructor });
-    }
-
-    void addReference(KEY resource) noexcept {
-        ++mDisposables[resource]->refcount;
-    }
-
-    void removeReference(KEY resource) noexcept {
-        if (--mDisposables[resource]->refcount == 0) {
-            mGraveyard.emplace_back(std::move(mDisposables[resource]));
-            mDisposables.erase(resource);
-        }
-    }
-    void acquire(KEY resource, Set& resources) noexcept {
-        auto iter = resources.find(resource);
-        if (iter == resources.end()) {
-            resources.insert(resource);
-            addReference(resource);
-        }
-    }
-
-    void release(Set& resources) {
-        for (auto resource : resources) {
-            removeReference(resource);
-        }
-        resources.clear();
-    }
-
-    void gc() noexcept {
-        for (auto& ptr : mGraveyard) {
-            ptr->destructor();
-        }
-        mGraveyard.clear();
-    }
+    tsl::robin_map<Key, Disposable> mDisposables;
+    std::vector<Disposable> mGraveyard;
 };
-
-using VulkanDisposer = Disposer<const HwBase*>;
 
 } // namespace filament
 } // namespace driver

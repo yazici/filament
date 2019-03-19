@@ -224,6 +224,7 @@ if (FILAMENT_SUPPORTS_VULKAN)
             src/driver/vulkan/VulkanBinder.h
             src/driver/vulkan/VulkanBuffer.cpp
             src/driver/vulkan/VulkanBuffer.h
+            src/driver/vulkan/VulkanDisposer.cpp
             src/driver/vulkan/VulkanDisposer.h
             src/driver/vulkan/VulkanDriver.cpp
             src/driver/vulkan/VulkanDriver.h

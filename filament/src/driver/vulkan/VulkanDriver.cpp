@@ -196,7 +196,7 @@ void VulkanDriver::terminate() {
     mStagePool.reset();
     mFramebufferCache.reset();
     mSamplerCache.reset();
-    mDisposer.gc();
+    mDisposer.reset();
 
     vmaDestroyAllocator(mContext.allocator);
     vkDestroyCommandPool(mContext.device, mContext.commandPool, VKALLOC);
