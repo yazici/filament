@@ -261,20 +261,6 @@ void VulkanDriver::flush(int) {
     // Todo: equivalent of glFlush()
 }
 
-void VulkanDriver::createVertexBufferR(Driver::VertexBufferHandle vbh, uint8_t bufferCount,
-        uint8_t attributeCount, uint32_t elementCount, Driver::AttributeArray attributes,
-        Driver::BufferUsage usage) {
-    construct_handle<VulkanVertexBuffer>(mHandleMap, vbh, mContext, mStagePool, bufferCount,
-            attributeCount, elementCount, attributes);
-}
-
-void VulkanDriver::createIndexBufferR(Driver::IndexBufferHandle ibh, Driver::ElementType elementType,
-        uint32_t indexCount, Driver::BufferUsage usage) {
-    auto elementSize = (uint8_t) getElementTypeSize(elementType);
-    construct_handle<VulkanIndexBuffer>(mHandleMap, ibh, mContext, mStagePool, elementSize,
-            indexCount);
-}
-
 void VulkanDriver::createSamplerGroupR(Driver::SamplerGroupHandle sbh, size_t count) {
     construct_handle<VulkanSamplerGroup>(mHandleMap, sbh, mContext, count);
 }
@@ -286,6 +272,40 @@ void VulkanDriver::createUniformBufferR(Driver::UniformBufferHandle ubh, size_t 
 
 void VulkanDriver::createRenderPrimitiveR(Driver::RenderPrimitiveHandle rph, int) {
     construct_handle<VulkanRenderPrimitive>(mHandleMap, rph, mContext);
+}
+
+void VulkanDriver::createVertexBufferR(Driver::VertexBufferHandle vbh, uint8_t bufferCount,
+        uint8_t attributeCount, uint32_t elementCount, Driver::AttributeArray attributes,
+        Driver::BufferUsage usage) {
+    auto vertexBuffer = construct_handle<VulkanVertexBuffer>(mHandleMap, vbh, mContext, mStagePool,
+            bufferCount, attributeCount, elementCount, attributes);
+    mDisposer.createDisposable(vertexBuffer, [this, vbh] () {
+        destruct_handle<VulkanVertexBuffer>(mHandleMap, vbh);
+    });
+}
+
+void VulkanDriver::destroyVertexBuffer(Driver::VertexBufferHandle vbh) {
+    if (vbh) {
+        auto vertexBuffer = handle_cast<VulkanVertexBuffer>(mHandleMap, vbh);
+        mDisposer.removeReference(vertexBuffer);
+    }
+}
+
+void VulkanDriver::createIndexBufferR(Driver::IndexBufferHandle ibh,
+        Driver::ElementType elementType, uint32_t indexCount, Driver::BufferUsage usage) {
+    auto elementSize = (uint8_t) getElementTypeSize(elementType);
+    auto indexBuffer = construct_handle<VulkanIndexBuffer>(mHandleMap, ibh, mContext, mStagePool,
+            elementSize, indexCount);
+    mDisposer.createDisposable(indexBuffer, [this, ibh] () {
+        destruct_handle<VulkanIndexBuffer>(mHandleMap, ibh);
+    });
+}
+
+void VulkanDriver::destroyIndexBuffer(Driver::IndexBufferHandle ibh) {
+    if (ibh) {
+        auto indexBuffer = handle_cast<VulkanIndexBuffer>(mHandleMap, ibh);
+        mDisposer.removeReference(indexBuffer);
+    }
 }
 
 void VulkanDriver::createTextureR(Driver::TextureHandle th, SamplerType target, uint8_t levels,
@@ -300,7 +320,7 @@ void VulkanDriver::createTextureR(Driver::TextureHandle th, SamplerType target, 
 
 void VulkanDriver::destroyTexture(Driver::TextureHandle th) {
     if (th) {
-        auto* texture = handle_cast<VulkanTexture>(mHandleMap, th);
+        auto texture = handle_cast<VulkanTexture>(mHandleMap, th);
         mBinder.unbindImageView(texture->imageView);
         mDisposer.removeReference(texture);
     }
@@ -418,20 +438,6 @@ Handle<HwSwapChain> VulkanDriver::createSwapChainS() noexcept {
 
 Handle<HwStream> VulkanDriver::createStreamFromTextureIdS() noexcept {
     return {};
-}
-
-void VulkanDriver::destroyVertexBuffer(Driver::VertexBufferHandle vbh) {
-    if (vbh) {
-        waitForIdle(mContext);
-        destruct_handle<VulkanVertexBuffer>(mHandleMap, vbh);
-    }
-}
-
-void VulkanDriver::destroyIndexBuffer(Driver::IndexBufferHandle ibh) {
-    if (ibh) {
-        waitForIdle(mContext);
-        destruct_handle<VulkanIndexBuffer>(mHandleMap, ibh);
-    }
 }
 
 void VulkanDriver::destroyRenderPrimitive(Driver::RenderPrimitiveHandle rph) {

@@ -36,7 +36,6 @@ VulkanBuffer::VulkanBuffer(VulkanContext& context, VulkanStagePool& stagePool,
 }
 
 VulkanBuffer::~VulkanBuffer() {
-    assert(!hasPendingWork(mContext) && "Buffer destroyed while work is pending.");
     vmaDestroyBuffer(mContext.allocator, mGpuBuffer, mGpuMemory);
 }
 
